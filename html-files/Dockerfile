@@ -4,7 +4,7 @@ FROM php:7.4-apache
 COPY . /var/www/html/
 
 # Set up API key
-RUN echo "<?php\n\$API_KEY = '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';" > /var/www/html/api_key.php
+RUN echo "<?php\n\$API_KEY = 'sk-OPENAI-KEY-HERE';" > /var/www/html/api_key.php
 
 # Set the server name
 RUN echo "ServerName ai-chatbot.stategy.ca" >> /etc/apache2/apache2.conf
