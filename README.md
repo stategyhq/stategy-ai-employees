@@ -20,6 +20,9 @@ COPY . /usr/local/apache2/htdocs/
 ```
     
     This Dockerfile uses the `httpd` base image to create a new image, copies the contents of the current directory to the `/usr/local/apache2/htdocs` directory in the container, and runs the HTTP server on port 80.
+
+You can also use the prebuilt dockerfile and update the API Key for OpenAi.
+
     
 3.  Build the Docker image using the `docker build` command:
     
