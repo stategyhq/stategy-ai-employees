@@ -30,7 +30,6 @@
 </head>
 <body>
 
-
 <div class="title-bar" style="display:none">
   <div class="title-bar-right">
     <ul class="horizontal menu mobile-menu-title-bar" style="display:none">
@@ -64,7 +63,11 @@
                   <textarea name="chat" id="chat" placeholder="Type your message here" maxlength="200"></textarea>
                 </div>
                 <button class="submit btn-send-chat" tabindex="0"><span>Send</span></button>
-                <span class="character-typing"><b class='wait'>Wait,</b> <span></span>  <b class='is_typing'>is typing...</b></span>
+                <span class="character-typing">
+                  <b class='wait'>Wait,</b> <span></span>  <b class='is_typing'>is typing...</b>
+                  <svg viewBox="0 0 30 10" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="5" r="4" fill="#fff"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></circle><circle cx="15" cy="5" r="4" fill="#fff"><animate attributeName="opacity" values="0.3;1;0.3" dur="1s" begin="0.33s" repeatCount="indefinite"/></circle><circle cx="26" cy="5" r="4" fill="#fff"><animate attributeName="opacity" values="0.3;1;0.3" dur="1s" begin="0.66s" repeatCount="indefinite"/></circle></svg>
+                  <div class="button-cancel-chat"><img src="img/btn_stop.svg"><b class="stop-chat-label">Stop</b></div>
+                </span>
               </div><!--chat-input-->
             </div><!--container-flex-->
     </section>  
@@ -123,6 +126,7 @@
 <script src="js/highlight.min.js"></script>
 <script src="js/toastr.min.js"></script>
 <script src="js/sweetalert2.all.min.js"></script>
+<script src="js/sse.js"></script>
 <script src="js/app.js?v1-8"></script>
   </body>
 </html>
