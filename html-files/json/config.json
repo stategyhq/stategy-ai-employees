@@ -7,7 +7,7 @@
 	"use_text_stream": true,
 	"display_avatar_in_chat": true,
 	"display_copy_text_button_in_chat": true,
-	"display_audio_button_answers": true,
+	"display_audio_button_answers": false,
 	"filter_badwords": true,
 	"chat_history": true,
 	"chat_font_size": "18px",
