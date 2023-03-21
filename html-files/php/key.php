@@ -1,3 +1,3 @@
 <?php
 // Set up API key
-$API_KEY = "API-KEY-HERE";
+$API_KEY = "YOUR_KEY_HERE";

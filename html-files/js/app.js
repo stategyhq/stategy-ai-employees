@@ -6,6 +6,7 @@ let character_name = "";
 let character_image = "";
 let character_background_color = "";
 let character_training = "";
+let chat_font_size = "";
 let audio_button_lang = "";
 let dalle_img_size = "";
 let CHAT_PHP_url = 'php/api.php';
@@ -23,8 +24,9 @@ let lang_index = 0;
 
 let shuffle_character = false;
 let is_model_turbo = false;
-let use_php_api = false;
+let use_text_stream = false;
 let display_avatar_in_chat = false;
+let display_copy_text_button_in_chat = false;
 let filter_badwords = true;
 let display_audio_button_answers = true;
 let chat_history = true;
@@ -38,6 +40,7 @@ let lang = [];
 let = badWords = []
 let array_messages = [];
 let filterBotWords = ["Robot:", "Bot:"];
+
 
 if (window.location.protocol === 'file:') {
   alert('This file is not runnable locally, an http server is required, please read the documentation.');
@@ -55,20 +58,20 @@ function loadData(url, urls) {
       if(filter_badwords){badWords = OutB.badwords.split(',')}
       lang_index = lang.use_lang_index;
       API_MODEL = out.API_MODEL;
+      use_text_stream = out.use_text_stream;
       display_avatar_in_chat = out.display_avatar_in_chat;
+      display_copy_text_button_in_chat = out.display_copy_text_button_in_chat;
       display_audio_button_answers = out.display_audio_button_answers;
       filter_badwords = out.filter_badwords;
       chat_history = out.chat_history;
-      chat_minlength = out.chat_minlength;
-      chat_maxlength = out.chat_maxlength;
+      chat_font_size = out.chat_font_size;
       dalle_img_size = out.dalle_img_size;
       dalle_generated_img_count = out.dalle_generated_img_count;
-      max_num_chats_api = out.max_num_chats_api;
       shuffle_character = out.shuffle_character;
       audio_button_lang = lang.translate[lang_index].code_lang;
       is_model_turbo = API_MODEL.includes('-turbo');
-      // Set the maxlength attribute of the chat element to the value of chat_maxlength
-      $("#chat").attr("maxlength",chat_maxlength)
+      copy_text_in_chat = display_copy_text_button_in_chat ? `<button class="copy-text" onclick="copyText(this)"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> <span class="label-copy-code">${lang["translate"][lang_index].copy_text1}</span></button>` : '';
+			var s=document.createElement('style');s.innerHTML='.chat-response{font-size:'+chat_font_size+'}';document.head.appendChild(s);
 
       if(shuffle_character){
         OutC = shuffleArray(OutC);
@@ -88,6 +91,9 @@ function loadData(url, urls) {
           'temperature':OutC[i]['temperature'],
           'frequency_penalty':OutC[i]['frequency_penalty'],
           'presence_penalty':OutC[i]['presence_penalty'],
+          'chat_minlength':OutC[i]['chat_minlength'],
+          'chat_maxlength':OutC[i]['chat_maxlength'],
+          'max_num_chats_api':OutC[i]['max_num_chats_api'],
           'last_chat':""
         })
 
@@ -130,62 +136,142 @@ function loadData(url, urls) {
 			return timestamp.toLocaleString();
 		}
 
-		//Main function of GPT-3 chat API
-		async function getResponse(prompt) {
 
-			//Conversation history
-			array_chat.push({"name":"User","message":prompt,"date":currentDate()})			
-			array_messages = [];
+//Main function of GPT-3 chat API
+async function getResponse(prompt) {
 
-			//Converting chat to turbo API model
-			for (let i = 0; i < array_chat.length; i++) {
-			  let message = {"role": "", "content": ""};
+  //Conversation history
+  array_chat.push({"name":"User","message":prompt,"isImg":false,"date":currentDate()})
+  array_messages = [];
 
-			  if (array_chat[i].training === true) {
-			    let system_message = {"role": "system", "content": array_chat[i].message};
-			    array_messages.push(system_message);
-			  }else{
-					if (array_chat[i].name === "User") {
-				    message.role = "user";
-				  } else {
-				    message.role = "assistant";
-				  }
-				  message.content = array_chat[i].message; 
-				  array_messages.push(message);
-			  }
-			}
+  //Converting chat to turbo API model
+  for (let i = 0; i < array_chat.length; i++) {
+    let message = {"role": "", "content": ""};
 
-			if (array_messages.length > max_num_chats_api) {
-				var slice_messages = max_num_chats_api - 2;
-			  array_messages = array_messages.slice(0, 2).concat(array_messages.slice(-slice_messages));
-			}
+    if (array_chat[i].training === true) {
+      let system_message = {"role": "system", "content": array_chat[i].message};
+      array_messages.push(system_message);
+    } else {
+      if (array_chat[i].name === "User") {
+        message.role = "user";
+      } else {
+        message.role = "assistant";
+      }
+      message.content = array_chat[i].message; 
+      array_messages.push(message);
+    }
+  }
 
-			const data = {
-			  array_chat: array_messages,
-			  character_name: character_name,
-			  model:API_MODEL,
-			  temperature:character_temperature,
-			  frequency_penalty:character_frequency_penalty,
-			  presence_penalty:character_presence_penalty
-			};				
+  if (array_messages.length > max_num_chats_api) {
+    var slice_messages = max_num_chats_api - 2;
+    array_messages = array_messages.slice(0, 2).concat(array_messages.slice(-slice_messages));
+  }
 
-			fetch(CHAT_PHP_url, {
-			  method: 'POST',
-			  body: JSON.stringify(data),
-			  headers: {
-			    'Content-Type': 'application/json'
-			  }
-			})
-			.then(response => response.json())
-			.then(data => {
-			  if (data.status == 1) {
-			    responseChat(data.message);
-			  } else{
-			  	toastr.error("❌ "+data.message)
-			  	enableChat();
-			  }
-			})
+  const params = new URLSearchParams();
+  params.append('array_chat', JSON.stringify(array_messages));
+  params.append('character_name', character_name);
+  params.append('model', API_MODEL);
+  params.append('temperature', character_temperature);
+  params.append('frequency_penalty', character_frequency_penalty);
+  params.append('presence_penalty', character_presence_penalty);
+
+
+
+  try {
+    const randomID = generateUniqueID();
+		source = new SSE(CHAT_PHP_url, {headers: {'Content-Type': 'application/x-www-form-urlencoded'},payload: params,method: 'POST'});
+    streamChat(source,randomID);
+    source.stream();
+
+			$("#overflow-chat").append(`
+				<div class="chat border-character chat_${randomID}" style="border-color: ${character_background_color}">	
+						${copy_text_in_chat}
+						${avatar_in_chat}
+						${audio_in_chat}
+						<div class="wrapper-name-and-chat">
+							<div class="name">${character_name}</div>
+							<div class="chat-response ${randomID}"><span class='get-stream'></span><span class='cursor'></span></div>
+							<div class='date-chat'><img src='img/icon-clock.svg'> ${currentDate()}</div>
+						</div>
+				</div>
+			`);
+
+			$(`.chat_${randomID} .chat-audio`).hide();
+    scrollChatBottom();			
+  } catch (e) {
+    console.error(`Error creating SSE: ${e}`);
+  }
+}
+
+		function generateUniqueID(prefix = 'id_') {
+		  const timestamp = Date.now();
+		  return `${prefix}${timestamp}`;
 		}
+
+		function streamChat(source, randomID) {
+		  let fullPrompt = "";
+		  let partPrompt = "";
+		  source.addEventListener('message', function (e) {
+
+		    let data = e.data;
+		    let tokens = {};
+
+		    if (typeof data === 'string') {
+		      if (data.startsWith('[ERROR]')) {
+		        let message = data.substr('[ERROR]'.length).trim();
+		        toastr.error(message);
+		        enableChat();
+		        return;
+		      } else if (data === '[DONE]') {
+		        $(".cursor").remove();
+		        str = $(`.${randomID}`).html();
+		        str = escapeHtml(str);
+		        $(`.${randomID}`).html(str);
+		        $(`.chat_${randomID} .chat-audio`).fadeIn('slow');
+		        enableChat();
+		        scrollChatBottom();
+
+				    if(!use_text_stream){
+					    $(`.${randomID}`).append(fullPrompt);
+					    scrollChatBottom();
+				    }
+
+		        array_chat.push({"name":character_name,"message":fullPrompt, "date":currentDate()});
+		        checkClearChatDisplay();
+		        saveChatHistory();
+
+		        return false;
+		      } else {
+		        try {
+		          tokens = JSON.parse(data);
+		        } catch (err) {
+		          console.error(`Error parsing SSE data as JSON: ${err}`);
+		          return;
+		        }
+		      }
+		    }
+		    
+		    if (!tokens || !tokens.choices || tokens.choices.length === 0) {
+		      toastr.error("❌ "+tokens.message)
+		      enableChat();
+		      $(`.chat_${randomID}`).remove();
+		      return;
+		    }
+		    
+		    var choice = is_model_turbo ? tokens.choices[0].delta : tokens.choices[0];
+		    partPrompt = "";
+		    if (choice.content || choice.text) {
+		      fullPrompt += choice.content || choice.text;
+		      partPrompt = choice.content || choice.text;
+		    }
+
+		    if(use_text_stream){
+			    $(`.${randomID} .get-stream`).append(partPrompt);
+			    scrollChatBottom();
+		    }
+		  });
+		}
+
 
 		function saveChatHistory(){
 			array_characters[data_index].last_chat = array_chat;
@@ -220,6 +306,7 @@ function loadData(url, urls) {
 			
 			$("#overflow-chat").append(`
 				<div class="chat border-character" style="border-color: ${character_background_color}">	
+						${copy_text_in_chat}
 						${avatar_in_chat}
 						${audio_in_chat}
 						<div class="wrapper-name-and-chat">
@@ -330,8 +417,9 @@ function loadData(url, urls) {
 
 			$("#overflow-chat").append(`
 				<div class="chat border-you">	
+				  ${copy_text_in_chat}
 					<div class="wrapper-name-and-chat">
-						<div class="name">You</div>
+						<div class="name">${lang["translate"][lang_index].you}</div>
 						<div class="chat-response">${chat}</div>
 						<div class='date-chat'><img src='img/icon-clock.svg'> ${currentDate()}</div>
 					</div>
@@ -382,8 +470,12 @@ function loadData(url, urls) {
 				".wait": "wait",
 				".is_typing": "is_typing",
 				".wrapper-name-and-chat .name": "you",
-				".label-copy-code": "copy_code1"
+				".label-copy-code": "copy_code1",
+				".stop-chat-label": "stop_chat_label"
 			};
+
+			//$(".stop-chat-label").html(lang["translate"][lang_index].stop_chat_label)
+			
 
 			Object.keys(translationObj).forEach(function(key) {
 				const value = translationObj[key];
@@ -401,6 +493,12 @@ function loadData(url, urls) {
 			hideModal();
 			enableChat();
 		}
+
+		$(".button-cancel-chat").on("click", function(){
+			enableChat();
+		  source.close();			
+		  $(".cursor").remove();
+		})
 
 		document.addEventListener("keydown", function(event) {
 		  if (event.key === "Escape") {
@@ -431,7 +529,13 @@ function loadData(url, urls) {
 			character_training = array_characters[data_index]['training'];
  			displayWelcomeMessage = array_characters[data_index]['display_welcome_message'];
  			welcome_message = array_characters[data_index]['welcome_message'];
+      chat_minlength = array_characters[data_index]['chat_minlength'];
+      chat_maxlength = array_characters[data_index]['chat_maxlength'];
+      max_num_chats_api = array_characters[data_index]['max_num_chats_api'];
  			lastChatLength = array_characters[data_index]['last_chat'].length;
+ 			$("#chat").val("");
+ 			// Set the maxlength attribute of the chat element to the value of chat_maxlength
+      $("#chat").attr("maxlength",chat_maxlength)
 
 			if (lastChatLength > 0) {
 			  loadChat();
@@ -443,51 +547,73 @@ function loadData(url, urls) {
 			  }
 			}
 
-
 			$("#chatModal").fadeIn('fast');
 			return false;
 		})
-const escapeHtml = (str) => {
-  // Verifica se a string contém tags <code> ou <pre>
-  if (/<code>|<\/code>|<pre>|<\/pre>/g.test(str)) {
-    // Retorna a string sem substituir os caracteres dentro das tags
-    return str;
-  }
 
-  // Substitui os caracteres especiais com seus respectivos códigos HTML
-  str = str.replace(/[&<>"'`{}()\[\]]/g, (match) => {
-    switch (match) {
-      
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '{': return '&#123;';
-      case '}': return '&#125;';
-      case '(': return '&#40;';
-      case ')': return '&#41;';
-      case '[': return '&#91;';
-      case ']': return '&#93;';
-      default: return match;
-    }
-  });
+		const escapeHtml = (str) => {
 
-  // Substitui o trecho ```codigo``` por <pre><code>codigo</code></pre>
-  str = str.replace(/```(\w+)?([\s\S]*?)```/g, '<pre><code>$2</code><button class="copy-code" onclick="copyCode(this)"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> <span class="label-copy-code">'+lang["translate"][lang_index].copy_code1+'</span></button></pre>').replace(/(\d+\.\s)/g, "<strong>$1</strong>");
+		  // Verifica se a string contém tags <code> ou <pre>
+		  if (/<code>|<\/code>|<pre>|<\/pre>/g.test(str)) {
+		    // Retorna a string sem substituir os caracteres dentro das tags
+		    return str;
+		  }
 
-  return str;
-};
+		  // Substitui os caracteres especiais com seus respectivos códigos HTML
+		  str = str.replace(/[&<>"'`{}()\[\]]/g, (match) => {
+		    switch (match) {
+		      
+		      case '<': return '&lt;';
+		      case '>': return '&gt;';
+		      case '{': return '&#123;';
+		      case '}': return '&#125;';
+		      case '(': return '&#40;';
+		      case ')': return '&#41;';
+		      case '[': return '&#91;';
+		      case ']': return '&#93;';
+		      default: return match;
+		    }
+		  });
+  
 
-// Função para copiar o conteúdo da tag <pre>
-function copyCode(button) {
-  const pre = button.parentElement;
-  const code = pre.querySelector('code');
-  const range = document.createRange();
-  range.selectNode(code);
-  window.getSelection().removeAllRanges();
-  window.getSelection().addRange(range);
-  document.execCommand("copy");
-  window.getSelection().removeAllRanges();
-  button.innerHTML = lang["translate"][lang_index].copy_code2;
-}
+		  // Remove a sequência &lt;span class="get-stream"&gt;
+		  str = str.replace(/&lt;span\s+class="get-stream"&gt;/g, "");
+
+		  // Remove a tag de fechamento </span>
+		  str = str.replace(/&lt;\/span&gt;/g, "");
+
+		  // Substitui o trecho ```codigo``` por <pre><code>codigo</code></pre>
+		  str = str.replace(/```(\w+)?([\s\S]*?)```/g, '<pre><code>$2</code><button class="copy-code" onclick="copyCode(this)"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> <span class="label-copy-code">'+lang["translate"][lang_index].copy_code1+'</span></button></pre>').replace(/(\d+\.\s)/g, "<strong>$1</strong>").replace(/(^[A-Za-z\s]+:)/gm, "<strong>$1</strong>");
+
+
+		  return str;
+		};
+
+		// função para copiar o conteudo de texto
+		function copyText(button){
+			const div = button.parentElement;
+		  const code = div.querySelector('.chat-response');
+		  const range = document.createRange();
+		  range.selectNode(code);
+		  window.getSelection().removeAllRanges();
+		  window.getSelection().addRange(range);
+		  document.execCommand("copy");
+		  window.getSelection().removeAllRanges();
+		  button.innerHTML = lang["translate"][lang_index].copy_text2;
+		}
+
+		// Função para copiar o conteúdo da tag <pre>
+		function copyCode(button) {
+		  const pre = button.parentElement;
+		  const code = pre.querySelector('code');
+		  const range = document.createRange();
+		  range.selectNode(code);
+		  window.getSelection().removeAllRanges();
+		  window.getSelection().addRange(range);
+		  document.execCommand("copy");
+		  window.getSelection().removeAllRanges();
+		  button.innerHTML = lang["translate"][lang_index].copy_code2;
+		}
 	
 		// Clear Chat
 		function clearChat(target) {
@@ -534,6 +660,7 @@ function copyCode(button) {
 		        "name": character_name,
 		        "message": character_training,
 		        "training": true,
+		        "isImg":false,
 		        "date": currentDate()
 		      })
 		      // Save updated character data to local storage
@@ -577,21 +704,23 @@ function copyCode(button) {
 		            </div>
 		          `;
 		          $("#overflow-chat").append(chatHtml);
+		        	array_chat.push({"name":"User","message":currentChat.message,"isImg":true,imgURL: currentChat.imgURL,"date":currentDate()});
 		        }else{
 		          const chatResponse = escapeHtml(currentChat.message)
 		          const chatHtml = `
 		            <div class="chat border-you">
+		              ${copy_text_in_chat}
 		              <div class="wrapper-name-and-chat">
-		                <div class="name">You</div>
+		                <div class="name">${lang["translate"][lang_index].you}</div>
 		                <div class="chat-response">${chatResponse}</div>
 		                <div class='date-chat'><img src='img/icon-clock.svg'> ${currentChat.date || ''}</div>
 		              </div>
 		            </div>
 		          `;
 		          $("#overflow-chat").append(chatHtml);
+		        	array_chat.push({"name":"User","message":currentChat.message,"isImg":false,"date":currentDate()});
 		        }
 
-		        array_chat.push({"name":"User","message":currentChat.message,"isImg":true,imgURL: currentChat.imgURL,"date":currentDate()});
 
 		      }else{
 		        avatar_in_chat = display_avatar_in_chat ? `<div class="avatar-chat"><img src="${character_image}" alt="${character_name}" title="${character_name}"></div>` : '';
@@ -601,6 +730,7 @@ function copyCode(button) {
 		          const chatResponse = escapeHtml(currentChat.message)
 		          const chatHtml = `
 		            <div class="chat border-character" style="border-color: ${character_background_color}">
+		              ${copy_text_in_chat}
 		              ${avatar_in_chat}
 		              ${audio_in_chat}
 		              <div class="wrapper-name-and-chat">
@@ -748,7 +878,7 @@ function copyCode(button) {
 
 		    // Verifica se o recurso é suportado antes de chamar a função
 		    if ('speechSynthesis' in window) {
-		      doSpeechSynthesis(chatResponseText);
+		      doSpeechSynthesis(chatResponseText,$chatResponse);
 		    }
 		  }
 		});
@@ -762,48 +892,78 @@ function copyCode(button) {
 			window.speechSynthesis.cancel();
 		}		
 
-		function doSpeechSynthesis(longText){
-			longText = cleanStringToSynthesis(longText)
 
-		  // The maximum number of characters in each part
-		  const maxLength = 150;
+function doSpeechSynthesis(longText, chatResponse) {
 
-		  // Divide the text into smaller parts
-		  const textParts = [];
-		  let startIndex = 0;
-		  while (startIndex < longText.length) {
-		    let endIndex = Math.min(startIndex + maxLength, longText.length);
-		    if (endIndex < longText.length) {
-		      endIndex = longText.lastIndexOf(' ', endIndex);
-		    }
-		    textParts.push(longText.substring(startIndex, endIndex));
-		    startIndex = endIndex + 1;
+	$("span.chat-response-highlight").each(function() {
+	  $(this).replaceWith($(this).text());
+	});	
+
+  longText = cleanStringToSynthesis(longText);
+
+  // The maximum number of characters in each part
+  const maxLength = 130;
+
+  // Find the indices of punctuation marks in the longText string
+  const punctuationIndices = [...longText.matchAll(/[,.?!]/g)].map(match => match.index);
+
+  // Divide the text into smaller parts at the punctuation marks
+  const textParts = [];
+  let startIndex = 0;
+  for (let i = 0; i < punctuationIndices.length; i++) {
+    if (punctuationIndices[i] - startIndex < maxLength) {
+      continue;
+    }
+    textParts.push(longText.substring(startIndex, punctuationIndices[i] + 1));
+    startIndex = punctuationIndices[i] + 1;
+  }
+  if (startIndex < longText.length) {
+    textParts.push(longText.substring(startIndex));
+  }
+
+  // Create SpeechSynthesisUtterance instances for each piece of text
+  const utterances = textParts.map(textPart => {
+    const utterance = new SpeechSynthesisUtterance(textPart);
+    utterance.lang = audio_button_lang;
+    return utterance;
+  });
+
+  // Define the end of speech event
+  utterances[utterances.length - 1].addEventListener("end", () => {
+    $(".chat-audio img").attr("src", "img/btn_tts_play.svg");
+    $(".chat-audio img").attr("data-play", "false");
+  });
+
+  let firstChat = false;
+		// Read each piece of text sequentially
+		function speakTextParts(index = 0) {
+		  if (index < utterances.length) {
+		    const textToHighlight = textParts[index];
+		    const highlightIndex = longText.indexOf(textToHighlight);
+
+		    // Highlight the text
+		    chatResponse.html(chatResponse.html().replace(textToHighlight, `<span class="chat-response-highlight">${textToHighlight}</span>`));
+
+		    // Speak the text
+		    speechSynthesis.speak(utterances[index]);
+		    utterances[index].addEventListener("end", () => {
+		      // Remove the highlight
+		      chatResponse.html(chatResponse.html().replace(`<span class="chat-response-highlight">${textToHighlight}</span>`, textToHighlight));
+		      speakTextParts(index + 1);
+		    });
+
+		    // Remove the highlight if speech synthesis is interrupted
+		    speechSynthesis.addEventListener('pause', () => {
+		      chatResponse.html(chatResponse.html().replace(`<span class="chat-response-highlight">${textToHighlight}</span>`, textToHighlight));
+		    }, {once: true});
 		  }
-
-		  // Create SpeechSynthesisUtterance instances for each piece of text
-		  const utterances = textParts.map(textPart => {
-		    const utterance = new SpeechSynthesisUtterance(textPart);
-		    utterance.lang = audio_button_lang;
-		    return utterance;
-		  });
-
-		  // Define the end of speech event
-		  utterances[utterances.length - 1].addEventListener("end", () => {
-		    $(".chat-audio img").attr("src", "img/btn_tts_play.svg");
-		    $(".chat-audio img").attr("data-play", "false");
-		  });
-
-		  // Read each piece of text sequentially
-		  function speakTextParts(index = 0) {
-		    if (index < utterances.length) {
-		      speechSynthesis.speak(utterances[index]);
-		      utterances[index].addEventListener("end", () => speakTextParts(index + 1));
-		    }
-		  }
-
-		  //Begin speak
-		  speakTextParts();
 		}
+
+	  // Begin speak
+	  speakTextParts();
+	}
+
+	
 
 		function mobileMenu(){
 			$(".mobile-menu-toogle").toggle();
